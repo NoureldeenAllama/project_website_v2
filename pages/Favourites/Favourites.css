@@ -1,0 +1,22 @@
+.favourites-page{
+    padding: 40px 0;
+}
+.favourites-header h2{
+    font-size: 32px;
+}
+.favourites-header p{
+    color: #666;
+}
+.favourites-empty{
+    font-size: 18px;
+    color: #49557E;
+    margin-top: 20px;
+}
+.favourites-grid{
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    row-gap: 50px;
+}
+
