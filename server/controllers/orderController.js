@@ -1,116 +1,53 @@
-import { orders } from "../data/store.js";
+import orderModel from "../models/OrderModel.js";
 
-// Helper to validate order payload
-function validateOrderBody(body) {
-  const { items, totals, deliveryInfo, paymentInfo } = body;
-
-  if (!Array.isArray(items) || items.length === 0) {
-    return "Order must include at least one item";
-  }
-
-  if (!totals || typeof totals.subtotal !== "number" || typeof totals.grandTotal !== "number") {
-    return "Totals (subtotal, grandTotal) are required and must be numbers";
-  }
-
-  if (!deliveryInfo || !deliveryInfo.firstName || !deliveryInfo.phone) {
-    return "Delivery info must include at least firstName and phone";
-  }
-
-  if (!paymentInfo || !paymentInfo.method) {
-    return "Payment info is required";
-  }
-
-  return null;
-}
-
-// POST /api/orders
-export function createOrder(req, res, next) {
+// Place Order
+const createOrder = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const error = validateOrderBody(req.body);
-    if (error) {
-      return res.status(400).json({ message: error });
-    }
-
-    const { items, totals, deliveryInfo, paymentInfo } = req.body;
-
-    const newOrder = {
-      id: String(orders.length + 1),
-      userId,
-      items,
-      totals,
-      deliveryInfo,
-      paymentInfo,
-      status: "received",
-      createdAt: new Date().toISOString()
-    };
-
-    orders.push(newOrder);
-
-    return res.status(201).json({ orderId: newOrder.id });
-  } catch (err) {
-    next(err);
+    const newOrder = new orderModel({
+      userId: req.user.id, 
+      items: req.body.items,
+      amount: req.body.amount,
+      address: req.body.address,
+    });
+    await newOrder.save();
+    res.json({ success: true, message: "Order Placed" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: "Error" });
   }
-}
+};
 
-// GET /api/orders
-export function getUserOrders(req, res, next) {
+// User Orders
+const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const userOrders = orders.filter((o) => o.userId === userId);
-    return res.json({ orders: userOrders });
-  } catch (err) {
-    next(err);
+    const orders = await orderModel.find({ userId: req.user.id });
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: "Error" });
   }
-}
+};
 
-// GET /api/orders/:id
-export function getOrderById(req, res, next) {
+// Get Single Order
+const getOrderById = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const { id } = req.params;
-    const order = orders.find((o) => o.id === id && o.userId === userId);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    return res.json({ order });
-  } catch (err) {
-    next(err);
+    const order = await orderModel.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true, data: order });
+  } catch (error) {
+     res.json({ success: false, message: "Error" });
   }
-}
+};
 
-// Optional: PATCH /api/orders/:id/status (for future admin)
-export function updateOrderStatus(req, res, next) {
+// Update Status (Admin)
+const updateOrderStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    const order = orders.find((o) => o.id === id);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (!status) {
-      return res.status(400).json({ message: "Status is required" });
-    }
-
-    order.status = status;
-    return res.json({ order });
-  } catch (err) {
-    next(err);
+    await orderModel.findByIdAndUpdate(req.params.id, { status: req.body.status });
+    res.json({ success: true, message: "Status Updated" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: "Error" });
   }
 }
+
+export { createOrder, getUserOrders, getOrderById, updateOrderStatus };

@@ -1,42 +1,72 @@
 import React, { useState, useContext } from "react";
 import "./LoginPopup.css";
 import { assets } from "../../assets/assets";
-import { loginApi } from "../../api";
 import { StoreContext } from "../../pages/Context/StoreContext";
 
 const LoginPopup = ({ setShowLogin }) => {
+  const { setUser } = useContext(StoreContext);
+
   const [currState, setCurrState] = useState("Login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [data, setData] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
   const [error, setError] = useState("");
 
-  const { setUser } = useContext(StoreContext) || { setUser: () => {} };
+  const onChangeHandler = (event) => {
+    const name = event.target.name;
+    const value = event.target.value;
+    setData((data) => ({ ...data, [name]: value }));
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onLogin = async (event) => {
+    event.preventDefault();
     setError("");
 
+    // 1. Choose the correct URL based on state
+    let newUrl = "http://localhost:3000/api/auth";
+    if (currState === "Login") {
+      newUrl += "/login";
+    } else {
+      newUrl += "/register";
+    }
+
     try {
-      // For now, backend only has login; you can add register later.
-      const { user, token } = await loginApi(email, password);
+      // 2. Call the API
+      const response = await fetch(newUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      const result = await response.json();
 
-      if (setUser) {
-        setUser(user);
+      if (result.success) {
+        // 3. SUCCESS: Save Token & User
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
+        
+        // 4. Update Global State
+        setUser({ ...result.user, token: result.token });
+        
+        // 5. Close Popup
+        setShowLogin(false);
+      } else {
+        // Handle API errors (like "User already exists")
+        setError(result.message);
       }
-
-      setShowLogin(false);
-    } catch (err) {
-      setError(err.message || "Login failed");
+    } catch (error) {
+      console.error(error);
+      setError("Something went wrong. Please try again.");
     }
   };
 
   return (
     <div className="login-popup">
-      <div className="login-popup-container">
+      <form onSubmit={onLogin} className="login-popup-container">
         <div className="login-popup-title">
           <h2>{currState}</h2>
           <img
@@ -45,43 +75,46 @@ const LoginPopup = ({ setShowLogin }) => {
             alt=""
           />
         </div>
-
-        <form className="login-popup-inputs" onSubmit={handleSubmit}>
-          {currState === "Sign Up" && (
+        <div className="login-popup-inputs">
+          {currState === "Login" ? (
+            <></>
+          ) : (
             <input
+              name="name"
+              onChange={onChangeHandler}
+              value={data.name}
               type="text"
               placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              required
             />
           )}
           <input
+            name="email"
+            onChange={onChangeHandler}
+            value={data.email}
             type="email"
             placeholder="Your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             required
           />
           <input
+            name="password"
+            onChange={onChangeHandler}
+            value={data.password}
             type="password"
             placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
           />
-
-          {error && <p className="login-error">{error}</p>}
-
-          <button type="submit">
-            {currState === "Login" ? "Login" : "Create account"}
-          </button>
-        </form>
-
-        <div className="login-popup-condition">
-          <input type="checkbox" />
-          <p>By continuing, I agree to the terms of use &amp; privacy policy.</p>
         </div>
-
+        
+        {error && <p style={{color: "tomato", fontSize: "14px", marginTop: "-10px"}}>{error}</p>}
+        
+        <button type="submit">
+          {currState === "Sign Up" ? "Create account" : "Login"}
+        </button>
+        <div className="login-popup-condition">
+          <input type="checkbox" required />
+          <p>By continuing, I agree to the terms of use & privacy policy.</p>
+        </div>
         {currState === "Login" ? (
           <p>
             Create a new account?{" "}
@@ -93,7 +126,7 @@ const LoginPopup = ({ setShowLogin }) => {
             <span onClick={() => setCurrState("Login")}>Login here</span>
           </p>
         )}
-      </div>
+      </form>
     </div>
   );
 };

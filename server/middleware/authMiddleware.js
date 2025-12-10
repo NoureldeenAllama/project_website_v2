@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+// REMOVE the top-level const JWT_SECRET = ... line from here
 
 export function authRequired(req, res, next) {
   const authHeader = req.headers.authorization || "";
@@ -14,14 +14,20 @@ export function authRequired(req, res, next) {
   const token = authHeader.substring(7);
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    // FIX: Read the secret HERE, inside the function
+    // This ensures .env has finished loading before we try to use it
+    const token_secret = process.env.JWT_SECRET; 
+    
+    const payload = jwt.verify(token, token_secret);
+    
     req.user = {
-      id: payload.id,
-      email: payload.email,
-      name: payload.name
+      id: payload.id
     };
+    
     next();
   } catch (err) {
+    // Console log the error so you can see it in the terminal
+    console.log("Token Verification Error:", err.message);
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback } from "react";
+import React, { createContext, useState, useCallback, useEffect } from "react";
 import { food_list as seedFoodList, menu_list } from "../../assets/assets";
 import { createOrderApi, getMyOrdersApi } from "../../api";
 
@@ -64,10 +64,34 @@ const StoreContextProvider = (props) => {
   const [orders, setOrders] = useState([]);
   const [currentTrackingId, setCurrentTrackingId] = useState(null);
 
+  // --- FIX START: Safe User Loading ---
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem("user");
+      // Check if stored is valid and not the string "undefined"
+      if (stored && stored !== "undefined") {
+        return JSON.parse(stored);
+      }
+      return null;
+    } catch (error) {
+      console.error("Corrupt user data in local storage, clearing it.", error);
+      localStorage.removeItem("user");
+      return null;
+    }
   });
+  // --- FIX END ---
+
+  // Ensure we sync user to local storage whenever it changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+      // REMOVED THE LINE THAT WAS DELETING YOUR TOKEN
+    } else {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
+  }, [user]);
+
 
   const addToCart = (itemId) => {
     setCartItems((prev) => ({
